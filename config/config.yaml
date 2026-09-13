@@ -77,17 +77,7 @@ weight:
 
 # name 可以定义任意名称，只具有显示作用，即使项目运行了几天后，忽然改掉 name 也不会影响代码的正常运行
 platforms:
- # === 汽车垂直类（核心） ===
-  - id: "dongchedi"
-    name: "懂车帝"
-  - id: "autohome"
-    name: "汽车之家"
-  - id: "yiche"
-    name: "易车"
-  - id: "36kr-auto"
-    name: "36氪汽车"
-
-  # === 综合新闻媒体类（宏观与政策） ===
+# === 综合新闻媒体类（宏观政策、行业大事件） ===
   - id: "toutiao"
     name: "今日头条"
   - id: "baidu"
@@ -99,7 +89,7 @@ platforms:
   - id: "cankaoxiaoxi"
     name: "参考消息"
 
-  # === 财经投资类（销量、财报、供应链） ===
+  # === 财经投资类（车企财报、销量、供应链动态） ===
   - id: "wallstreetcn-hot"
     name: "华尔街见闻 最热"
   - id: "wallstreetcn-news"
@@ -114,8 +104,10 @@ platforms:
     name: "金十数据"
   - id: "fastbull"
     name: "快讯通"
+  - id: "_36kr"
+    name: "36氪"
 
-  # === 科技与社交类（爆点与维权） ===
+  # === 科技与社交类（汽车科技、热搜维权、行业分析） ===
   - id: "ithome"
     name: "IT之家"
   - id: "weibo"
