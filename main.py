@@ -3404,86 +3404,75 @@ def send_to_feishu(
     proxy_url: Optional[str] = None,
     mode: str = "daily",
 ) -> bool:
-    """发送到飞书（支持分批发送）"""
+    """发送到飞书（极简精简版：全局按热度排序，只发前10条）"""
     headers = {"Content-Type": "application/json"}
     proxies = None
     if proxy_url:
         proxies = {"http": proxy_url, "https": proxy_url}
 
-    # 获取分批内容，使用飞书专用的批次大小
-    batches = split_content_into_batches(
-        report_data,
-        "feishu",
-        update_info,
-        max_bytes=CONFIG.get("FEISHU_BATCH_SIZE", 29000),
-        mode=mode,
-    )
+    # 1. 提取所有匹配的新闻
+    all_news = []
+    for stat in report_data.get("stats", []):
+        for title_data in stat["titles"]:
+            all_news.append(title_data)
 
-    print(f"飞书消息分为 {len(batches)} 批次发送 [{report_type}]")
+    # 2. 按热度全局排序（出现次数降序，排名升序）
+    all_news.sort(key=lambda x: (-x.get("count", 1), min(x.get("ranks", [999]))))
 
-    # 逐批发送
-    for i, batch_content in enumerate(batches, 1):
-        batch_size = len(batch_content.encode("utf-8"))
-        print(
-            f"发送飞书第 {i}/{len(batches)} 批次，大小：{batch_size} 字节 [{report_type}]"
-        )
+    # 3. 截取前10条
+    top_news = all_news[:10]
 
-        # 添加批次标识
-        if len(batches) > 1:
-            batch_header = f"**[第 {i}/{len(batches)} 批次]**\n\n"
-            # 将批次标识插入到适当位置（在统计标题之后）
-            if "📊 **热点词汇统计**" in batch_content:
-                batch_content = batch_content.replace(
-                    "📊 **热点词汇统计**\n\n", f"📊 **热点词汇统计** {batch_header}"
-                )
+    # 4. 构建极简文本，不含任何富文本标签
+    if not top_news:
+        text_content = f"📊 热点简报 ({report_type})\n\n今日暂无匹配的热点新闻。"
+    else:
+        text_content = f"📊 热点简报 ({report_type})\n\n"
+        for i, news in enumerate(top_news, 1):
+            # 清理标题中的换行和多余空格
+            title = news.get("title", "").replace("\n", " ").replace("\r", " ").strip()
+            source = news.get("source_name", "")
+            # 优先使用移动端链接
+            link = news.get("mobile_url") or news.get("url", "")
+            
+            # 精简格式：序号. [来源] 标题 \n 链接
+            if link:
+                text_content += f"{i}. [{source}] {title}\n{link}\n\n"
             else:
-                # 如果没有统计标题，直接在开头添加
-                batch_content = batch_header + batch_content
+                text_content += f"{i}. [{source}] {title}\n\n"
 
-        total_titles = sum(
-            len(stat["titles"]) for stat in report_data["stats"] if stat["count"] > 0
-        )
-        now = get_beijing_time()
+    # 加上版本更新提示（如果存在）
+    if update_info:
+        text_content += f"\n(发现新版本 {update_info['remote_version']}，当前 {update_info['current_version']})"
 
-        payload = {
-            "msg_type": "text",
-            "content": {
-                "total_titles": total_titles,
-                "timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
-                "report_type": report_type,
-                "text": batch_content,
-            },
+    # 5. 发送请求（10条新闻体积很小，单次发送即可，无需分批）
+    print(f"发送飞书精简消息，共 {len(top_news)} 条新闻")
+    
+    payload = {
+        "msg_type": "text",
+        "content": {
+            "text": text_content
         }
+    }
 
-        try:
-            response = requests.post(
-                webhook_url, headers=headers, json=payload, proxies=proxies, timeout=30
-            )
-            if response.status_code == 200:
-                result = response.json()
-                # 检查飞书的响应状态
-                if result.get("StatusCode") == 0 or result.get("code") == 0:
-                    print(f"飞书第 {i}/{len(batches)} 批次发送成功 [{report_type}]")
-                    # 批次间间隔
-                    if i < len(batches):
-                        time.sleep(CONFIG["BATCH_SEND_INTERVAL"])
-                else:
-                    error_msg = result.get("msg") or result.get("StatusMessage", "未知错误")
-                    print(
-                        f"飞书第 {i}/{len(batches)} 批次发送失败 [{report_type}]，错误：{error_msg}"
-                    )
-                    return False
+    try:
+        response = requests.post(
+            webhook_url, headers=headers, json=payload, proxies=proxies, timeout=30
+        )
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("StatusCode") == 0 or result.get("code") == 0:
+                print("飞书消息发送成功")
+                return True
             else:
-                print(
-                    f"飞书第 {i}/{len(batches)} 批次发送失败 [{report_type}]，状态码：{response.status_code}"
-                )
+                error_msg = result.get("msg") or result.get("StatusMessage", "未知错误")
+                print(f"飞书消息发送失败，错误：{error_msg}")
                 return False
-        except Exception as e:
-            print(f"飞书第 {i}/{len(batches)} 批次发送出错 [{report_type}]：{e}")
+        else:
+            print(f"飞书发送失败，HTTP状态码：{response.status_code}")
             return False
-
-    print(f"飞书所有 {len(batches)} 批次发送完成 [{report_type}]")
-    return True
+    except Exception as e:
+        print(f"飞书发送出现异常：{e}")
+        return False
 
 
 def send_to_dingtalk(
