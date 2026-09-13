@@ -3419,8 +3419,8 @@ def send_to_feishu(
     # 2. 按热度全局排序（出现次数降序，排名升序）
     all_news.sort(key=lambda x: (-x.get("count", 1), min(x.get("ranks", [999]))))
 
-    # 3. 截取前10条
-    top_news = all_news[:10]
+    # 3. 截取前15条
+    top_news = all_news[:15]
 
     # 4. 构建极简文本，不含任何富文本标签
     if not top_news:
