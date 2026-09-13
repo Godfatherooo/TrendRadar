@@ -89,24 +89,6 @@ platforms:
   - id: "cankaoxiaoxi"
     name: "参考消息"
 
-  # === 财经投资类（车企财报、销量、供应链动态） ===
-  - id: "wallstreetcn-hot"
-    name: "华尔街见闻 最热"
-  - id: "wallstreetcn-news"
-    name: "华尔街见闻 最新"
-  - id: "cls-hot"
-    name: "财联社热门"
-  - id: "gelonghui"
-    name: "格隆汇"
-  - id: "xueqiu"
-    name: "雪球"
-  - id: "jin10"
-    name: "金十数据"
-  - id: "fastbull"
-    name: "快讯通"
-  - id: "_36kr"
-    name: "36氪"
-
   # === 科技与社交类（汽车科技、热搜维权、行业分析） ===
   - id: "ithome"
     name: "IT之家"
