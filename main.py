@@ -3404,7 +3404,7 @@ def send_to_feishu(
     proxy_url: Optional[str] = None,
     mode: str = "daily",
 ) -> bool:
-    """发送到飞书（极简精简版：全局按热度排序，只发前10条）"""
+    """发送到飞书（卡片UI样式版）"""
     headers = {"Content-Type": "application/json"}
     proxies = None
     if proxy_url:
@@ -3416,43 +3416,68 @@ def send_to_feishu(
         for title_data in stat["titles"]:
             all_news.append(title_data)
 
-    # 2. 按热度全局排序（出现次数降序，排名升序）
-    all_news.sort(key=lambda x: (-x.get("count", 1), min(x.get("ranks", [999]))))
+    # 2. 按新鲜度全局排序
+    all_news.sort(key=lambda x: x.get("last_time", ""), reverse=True)
 
     # 3. 截取前15条
     top_news = all_news[:15]
 
-    # 4. 构建极简文本，不含任何富文本标签
+    # 4. 构建卡片内容 (使用飞书 Markdown 语法)
+    md_content = ""
     if not top_news:
-        text_content = f"📊 热点简报 ({report_type})\n\n今日暂无匹配的热点新闻。"
+        md_content = "今日暂无匹配的汽车热点新闻。"
     else:
-        text_content = f"📊 热点简报 ({report_type})\n\n"
         for i, news in enumerate(top_news, 1):
-            # 清理标题中的换行和多余空格
             title = news.get("title", "").replace("\n", " ").replace("\r", " ").strip()
             source = news.get("source_name", "")
-            # 优先使用移动端链接
             link = news.get("mobile_url") or news.get("url", "")
             
-            # 精简格式：序号. [来源] 标题 \n 链接
+            # 拼接卡片内的 Markdown 格式：加粗标题，附带链接
             if link:
-                text_content += f"{i}. [{source}] {title}\n{link}\n\n"
+                md_content += f"**{i}. [{source}] {title}**\n[点击阅读原文]({link})\n\n"
             else:
-                text_content += f"{i}. [{source}] {title}\n\n"
+                md_content += f"**{i}. [{source}] {title}**\n\n"
 
-    # 加上版本更新提示（如果存在）
-    if update_info:
-        text_content += f"\n(发现新版本 {update_info['remote_version']}，当前 {update_info['current_version']})"
-
-    # 5. 发送请求（10条新闻体积很小，单次发送即可，无需分批）
-    print(f"发送飞书精简消息，共 {len(top_news)} 条新闻")
-    
+    # 5. 构造飞书 Interactive Card JSON
     payload = {
-        "msg_type": "text",
-        "content": {
-            "text": text_content
+        "msg_type": "interactive",
+        "card": {
+            "config": {
+                "wide_screen_mode": True,
+                "enable_forward": True
+            },
+            "header": {
+                "title": {
+                    "tag": "plain_text",
+                    "content": "🚗 汽车快讯播报"
+                },
+                "template": "blue"  # 卡片顶部颜色，可选：blue, wathet, turquoise, green, yellow, orange, red
+            },
+            "elements": [
+                {
+                    "tag": "div",
+                    "text": {
+                        "tag": "lark_md",
+                        "content": md_content
+                    }
+                },
+                {
+                    "tag": "hr" # 分割线
+                },
+                {
+                    "tag": "note",
+                    "elements": [
+                        {
+                            "tag": "plain_text",
+                            "content": f"来自 GitHub Actions 自动抓取 | {report_type} | {update_info['current_version'] if update_info else ''}"
+                        }
+                    ]
+                }
+            ]
         }
     }
+
+    print(f"发送飞书卡片消息，共 {len(top_news)} 条新闻")
 
     try:
         response = requests.post(
@@ -3460,12 +3485,13 @@ def send_to_feishu(
         )
         if response.status_code == 200:
             result = response.json()
+            # 飞书卡片的响应状态码有时是 StatusCode，有时是 code
             if result.get("StatusCode") == 0 or result.get("code") == 0:
-                print("飞书消息发送成功")
+                print("飞书卡片消息发送成功")
                 return True
             else:
                 error_msg = result.get("msg") or result.get("StatusMessage", "未知错误")
-                print(f"飞书消息发送失败，错误：{error_msg}")
+                print(f"飞书卡片消息发送失败，错误：{error_msg}")
                 return False
         else:
             print(f"飞书发送失败，HTTP状态码：{response.status_code}")
