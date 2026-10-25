@@ -3425,7 +3425,7 @@ def send_to_feishu(
     # 4. 构建卡片内容 (使用飞书 Markdown 语法)
     md_content = ""
     if not top_news:
-        md_content = "今日暂无匹配的汽车热点新闻。"
+        md_content = "等待刷新"
     else:
         for i, news in enumerate(top_news, 1):
             title = news.get("title", "").replace("\n", " ").replace("\r", " ").strip()
@@ -3449,9 +3449,9 @@ def send_to_feishu(
             "header": {
                 "title": {
                     "tag": "plain_text",
-                    "content": "🚗 汽车快讯播报"
+                    "content": "行业前沿"
                 },
-                "template": "blue"  # 卡片顶部颜色，可选：blue, wathet, turquoise, green, yellow, orange, red
+                "template": "green"  # 卡片顶部颜色，可选：blue, wathet, turquoise, green, yellow, orange, red
             },
             "elements": [
                 {
@@ -3469,7 +3469,7 @@ def send_to_feishu(
                     "elements": [
                         {
                             "tag": "plain_text",
-                            "content": f"来自 GitHub Actions 自动抓取 | {report_type} | {update_info['current_version'] if update_info else ''}"
+                            "content": f"自动抓取 | {report_type} | {update_info['current_version'] if update_info else ''}"
                         }
                     ]
                 }
@@ -3477,7 +3477,7 @@ def send_to_feishu(
         }
     }
 
-    print(f"发送飞书卡片消息，共 {len(top_news)} 条新闻")
+    print(f"行业前沿，最新 {len(top_news)} 则消息")
 
     try:
         response = requests.post(
@@ -3487,11 +3487,11 @@ def send_to_feishu(
             result = response.json()
             # 飞书卡片的响应状态码有时是 StatusCode，有时是 code
             if result.get("StatusCode") == 0 or result.get("code") == 0:
-                print("飞书卡片消息发送成功")
+                print("消息发送成功")
                 return True
             else:
                 error_msg = result.get("msg") or result.get("StatusMessage", "未知错误")
-                print(f"飞书卡片消息发送失败，错误：{error_msg}")
+                print(f"消息发送失败，错误：{error_msg}")
                 return False
         else:
             print(f"飞书发送失败，HTTP状态码：{response.status_code}")
