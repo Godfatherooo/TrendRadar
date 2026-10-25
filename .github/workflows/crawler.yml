@@ -72,10 +72,10 @@ jobs:
           # 检查是否有更改，有则提交
           if ! git diff --quiet || ! git diff --staged --quiet; then
             git commit -m "Auto update by GitHub Actions at $(TZ=Asia/Shanghai date)"
-            echo "📥 拉取远程最新更改..."
-            git pull --rebase origin master
-            echo "🚀 推送更改到远程仓库..."
-            git push origin master
+           echo "📥 拉取远程最新更改..."
+          git pull --no-rebase -X ours origin master || true
+          echo "🚀 推送更改到远程仓库..."
+          git push origin master || git push origin master -f
             echo "✅ 推送完成！"
           else
             echo "✅ 没有检测到文件更改，跳过提交。"
